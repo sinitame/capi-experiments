@@ -24,7 +24,7 @@ void cuda_add(void* A, void* B, void* C, int N){
 	cudaMemcpy(d_B, B, size, cudaMemcpyHostToDevice);
 
 	int blockSize = 64;
-	int numBlocks = N/64;
+	int numBlocks = N/64 + 1;
 
 	add_uint8<<<numBlocks,blockSize>>>(d_A,d_B,d_C,N);
 

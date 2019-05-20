@@ -29,24 +29,24 @@ LDLIBS += -lsnap -lcxl -lpthread -lcudart
 LDFLAGS += -Wl,-rpath,$(SNAP_ROOT)/software/lib
 LDFLAGS += -L$(SNAP_ROOT)/software/lib
 
-BIN_DIR = bin
-BUILD_DIR = build
-GPU_DIR = src/gpu
-FPGA_DIR = src/fpga
-HOST_DIR = src/host
-INCLUDE_DIR = include
+BIN_DIR = ../../bin
+BUILD_DIR = ../../build
+GPU_DIR = ../gpu
+FPGA_DIR = ../fpga
+HOST_DIR = .
+INCLUDE_DIR = ../../include
 
-C_SRCS := main_application.c
+C_SRCS := snap_gpu_example.c
 C_SRCS += $(notdir $(wildcard $(FPGA_DIR)/*.c))
 OBJECTS := $(addprefix $(BUILD_DIR)/,$(C_SRCS:.c=.o))
 
 CUDA_SRCS := $(notdir $(wildcard $(GPU_DIR)/*.cu))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(CUDA_SRCS:.cu=.cu.o))
 
-all: application_main
+all: snap_gpu_example
 
 ### Rules to build final executable
-application_main: $(OBJECTS) $(libs) $(LIBS)
+snap_gpu_example: $(OBJECTS) $(libs) $(LIBS)
 	@echo " Linking all files to generate executable .."
 	@$(CC) $(LDFLAGS) -I $(INCLUDE_DIR) $(OBJECTS) $(LDLIBS) -o $(BIN_DIR)/$@
 
