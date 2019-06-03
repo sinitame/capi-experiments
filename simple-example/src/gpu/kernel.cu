@@ -1,7 +1,6 @@
-#include "kernel.h"
+#include <kernel.h>
 #include <stdint.h>
 
-uint32_t *d_A, *d_B, *d_C;
 
 __global__ void add_uint8(uint32_t *A, uint32_t *B, uint32_t *C, int N){
 
@@ -12,9 +11,10 @@ __global__ void add_uint8(uint32_t *A, uint32_t *B, uint32_t *C, int N){
 }
 
 
-void cuda_add(void* A, void* B, void* C, int N){
+void cuda_add(uint32_t *A, uint32_t *B, uint32_t *C, int N){
 
 	size_t size = N*sizeof(uint32_t);
+	uint32_t *d_A, *d_B, *d_C;
 
 	cudaMalloc(&d_A, size);
 	cudaMalloc(&d_B, size);
@@ -30,11 +30,8 @@ void cuda_add(void* A, void* B, void* C, int N){
 
 	cudaMemcpy(C,d_C, size, cudaMemcpyDeviceToHost);
 	
-}
-
-void cuda_Finish(){
-	
 	cudaFree(d_A);
 	cudaFree(d_B);
 	cudaFree(d_C);
 }
+

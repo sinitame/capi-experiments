@@ -211,9 +211,6 @@ int main(int argc, char *argv[])
  	 ***************************************************/
 
 	cuda_add(obuff,obuff,result,vectorSize);
-	cuda_Finish();
-
-
 
 	/* If the output buffer is in host DRAM we can write it to a file */
 	if (output != NULL) {

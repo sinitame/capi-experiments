@@ -19,51 +19,40 @@ ifndef SNAP_ROOT
 $(error "SNAP_ROOT not set")
 endif
 
-ifeq (, $(shell which capi-flash-script))
-$(error "capi-flash-card not installed")
-endif
-
 CFLAGS = -std=c99 -I$(SNAP_ROOT)/software/include -W -Wall -Werror -Wwrite-strings -Wextra -O2 -g
 CFLAGS += -Wmissing-prototypes -D_GNU_SOURCE=1
-LDLIBS += -lsnap -lcxl -lpthread -lcudart
+LDLIBS += -lsnap -lcxl -lpthread
 LDFLAGS += -Wl,-rpath,$(SNAP_ROOT)/software/lib
 LDFLAGS += -L$(SNAP_ROOT)/software/lib
 
 BIN_DIR = ../../bin
 BUILD_DIR = ../../build
 GPU_DIR = ../gpu
-FPGA_DIR = ../fpga
-HOST_DIR = .
+FPGA_DIR = .
+HOST_DIR = ../host
 INCLUDE_DIR = ../../include
 
-TARGET=main_application
 
-C_SRCS := $(notdir $(wildcard $(HOST_DIR)/*.c))
-C_SRCS += $(notdir $(filter-out $(FPGA_DIR)/action_runner.c, $(wildcard $(FPGA_DIR)/*.c)))
-OBJECTS := $(addprefix $(BUILD_DIR)/,$(C_SRCS:.c=.o))
+C_SRCS += $(notdir $(wildcard $(FPGA_DIR)/*.c))
+OBJECTS += $(addprefix $(BUILD_DIR)/,$(C_SRCS:.c=.o))
 
-CUDA_SRCS := $(notdir $(wildcard $(GPU_DIR)/*.cu))
-OBJECTS += $(addprefix $(BUILD_DIR)/,$(CUDA_SRCS:.cu=.cu.o))
-
-all: $(TARGET)
+all: $(BUILD_DIR) $(BIN_DIR) action_runner
 
 ### Rules to build final executable
-$(TARGET): $(OBJECTS)
-	@echo " Linking all files to generate main_application executable .."
+action_runner: $(OBJECTS) $(libs) $(LIBS)
+	@echo " Linking all FPGA action files to generate action_runner executable .."
 	@$(CC) $(LDFLAGS) -I $(INCLUDE_DIR) $(OBJECTS) $(LDLIBS) -o $(BIN_DIR)/$@
 
-$(BUILD_DIR)/%.o: $(HOST_DIR)/%.c
-	@echo " Creating HOST object files .."
-	@$(CC) -c $(CPPFLAGS) -I $(INCLUDE_DIR) $(CFLAGS) $< -o $@
-
 $(BUILD_DIR)/%.o: $(FPGA_DIR)/%.c
-	@echo " Creating FPGA sw code object files .."
+	@echo " Creating FPGA action SW/HW object files .."
 	@$(CC) -c $(CPPFLAGS) -I $(INCLUDE_DIR) $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/%.cu.o : $(GPU_DIR)/%.cu
-	@echo " Creating GPU object files .."
-	@nvcc --compiler-bindir=/usr/bin/gcc-4 -I $(INCLUDE_DIR) -c $< -o $@
+$(BUILD_DIR):
+	@mkdir -p $@
+
+$(BIN_DIR):
+	@mkdir -p $@
 
 clean distclean:
-	$(RM) $(BUILD_DIR)/* $(BIN_DIR)/* $(libs)
+	$(RM) $(OBJECTS) $(BIN_DIR)/action_runner $(libs)
 
