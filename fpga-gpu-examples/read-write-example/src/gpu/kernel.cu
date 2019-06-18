@@ -1,5 +1,7 @@
 #include <kernel.h>
 
+cudaStream_t streams[MAX_STREAMS];
+
 inline cudaError_t checkCuda(cudaError_t result)
 {
   if (result != cudaSuccess) {
@@ -53,19 +55,34 @@ void memory_allocation_host(uint32_t *buffer[MAX_STREAMS], size_t size){
 	}
 }
 
-void run_new_stream(uint32_t *bufferA, uint32_t *bufferB, uint32_t *ibuff, uint32_t *obuff, int vector_size){
+void init_buffer(uint32_t *buffer, int vector_size){
+	int numBlocks, numThreadsPerBlock = 1024;
+	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
+	init_data<<<4*numBlocks, numThreadsPerBlock>>>(buffer,vector_size);
+
+}
+
+
+void run_new_stream_v1(uint32_t *bufferA, uint32_t *bufferB, uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream){
 	int numBlocks, numThreadsPerBlock = 1024;
 	size_t size = vector_size*sizeof(uint32_t);
 	
-	printf("Running kernel on GPU ..\n");
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
-
+	//printf("Running kernel on GPU ..\n");
+	cudaStream_t stream_i = streams[stream];
 	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
 	
-	cudaMemcpyAsync(ibuff,bufferA, size, cudaMemcpyDeviceToHost, stream);
-	vector_add<<<4*numBlocks, numThreadsPerBlock,0,stream>>>(ibuff,obuff,vector_size);
-	cudaMemcpyAsync(bufferB, obuff, size, cudaMemcpyHostToDevice, stream);
+	cudaMemcpyAsync(ibuff,bufferA, size, cudaMemcpyDeviceToHost, stream_i);
+	vector_add<<<4*numBlocks, numThreadsPerBlock,0,stream_i>>>(ibuff,obuff,vector_size);
+	cudaMemcpyAsync(bufferB, obuff, size, cudaMemcpyHostToDevice, stream_i);
+}
+
+void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream){
+	int numBlocks, numThreadsPerBlock = 1024;
+	
+	cudaStream_t stream_i = streams[stream];
+	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
+
+	vector_add<<<4*numBlocks, numThreadsPerBlock,0,stream_i>>>(ibuff,obuff,vector_size);
 }
 
 void free_host(uint32_t *buffer[MAX_STREAMS]){

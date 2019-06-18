@@ -161,6 +161,8 @@ int main(int argc, char *argv[])
 	memory_allocation_gpu(ibuff,size);
 	memory_allocation_gpu(obuff,size);
 
+	init_buffer(obuff[0],vector_size);
+
 	////////////////////////////////////////////////////////////////
 	//               MEMORY ALLOCATION ON HOST
 	////////////////////////////////////////////////////////////////
@@ -187,8 +189,10 @@ int main(int argc, char *argv[])
 
 	// prepare params to be written in MMIO registers for action
 	type  = SNAP_ADDRTYPE_HOST_DRAM;
-	addr_read = (unsigned long)bufferB[0];
-	addr_write = (unsigned long)bufferA[0];
+	//addr_read = (unsigned long)bufferB[0];
+	//addr_write = (unsigned long)bufferA[0];
+	addr_read = (unsigned long)obuff[0];
+	addr_write = (unsigned long)ibuff[0];
 	addr_write_flag = (unsigned long)write_flag;
 	addr_read_flag = (unsigned long)read_flag;
 
@@ -230,7 +234,7 @@ int main(int argc, char *argv[])
 		printf("error while setting registers");
 	}
 	/* Start Action and wait for finish */
-	printf("Starting FPGA action .. ");
+	printf("Starting FPGA action .. \n");
 	snap_action_start(action);
 
 	//--- Collect the timestamp AFTER the call of the action
@@ -251,12 +255,15 @@ int main(int argc, char *argv[])
 
 		//FPGA is writing data in buffer
 		while((read_flag[0] == 1) | (write_flag[0] == 1)){ 
-			sleep(0.0001);
+			sleep(0.000002);
 		}
 
-		printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
-		run_new_stream(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size);	   	
-		printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
+		//printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
+		//printf("Writting : [%d,%d, ... ,%d]\n",ibuff[0][0],ibuff[0][1],ibuff[0][vector_size-1]); 
+		//run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
+		run_new_stream_v2(ibuff[stream],obuff[stream],vector_size, stream);	   	
+		//printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
+		//printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
 		// FPGA can write new data	
 		read_flag[0] = 1;
 		write_flag[0] = 1;
