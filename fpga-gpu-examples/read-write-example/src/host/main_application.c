@@ -86,6 +86,14 @@ static void snap_prepare_gpu_example(struct snap_job *cjob,
 	snap_job_set(cjob, mjob, sizeof(*mjob), NULL, 0);
 }
 
+static void update_flag(uint8_t **flag, uint8_t flag_value, uint64_t addr){
+    (*flag)[0] = (uint8_t)flag_value;
+    for (int i = 0; i < (int)sizeof(uint64_t); i++){
+        (*flag)[i+1] = (addr >> 8*i) & 0xFF;
+    }
+
+}
+
 /* main program of the application for the hls_helloworld example        */
 /* This application will always be run on CPU and will call either       */
 /* a software action (CPU executed) or a hardware action (FPGA executed) */
@@ -241,32 +249,43 @@ int main(int argc, char *argv[])
 	gettimeofday(&etime, NULL);
 
 	// FPGA can read vector and write buffer
-	read_flag[0] = 1;
-	write_flag[0] = 1;
+	update_flag(&read_flag, 1, addr_read);
+	update_flag(&write_flag, 1, addr_write);
+
 	gettimeofday(&begin_time, NULL);
 
 	///////////////////////////////////////////////////////////////
 	//             RUNNING GPU KERNEL PIPELINING
 	//////////////////////////////////////////////////////////////
 	int stream =0;
+	//int next_stream =0;
 
 	for (int iteration = 0; iteration < max_iteration; iteration++){
-		stream = iteration % MAX_STREAMS;	
+		//stream = iteration % MAX_STREAMS;	
+		stream = 0;	
+		//next_stream = (iteration + 1) % MAX_STREAMS;	
 
 		//FPGA is writing data in buffer
-		while((read_flag[0] == 1) | (write_flag[0] == 1)){ 
-			sleep(0.000002);
+		while((read_flag[0] == 1) || (write_flag[0] == 1)){ 
+			sleep(0.000004);
 		}
 
 		//printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
-		//printf("Writting : [%d,%d, ... ,%d]\n",ibuff[0][0],ibuff[0][1],ibuff[0][vector_size-1]); 
+		printf("Writting : [%d,%d, ... ,%d]\n",ibuff[0][0],ibuff[0][1],ibuff[0][vector_size-1]); 
 		//run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
 		run_new_stream_v2(ibuff[stream],obuff[stream],vector_size, stream);	   	
 		//printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
-		//printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
+		printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
+		
 		// FPGA can write new data	
-		read_flag[0] = 1;
-		write_flag[0] = 1;
+		addr_read = (unsigned long)obuff[0];
+		addr_write = (unsigned long)ibuff[0];
+		//addr_read = (unsigned long)bufferB[next_stream];
+		//addr_write = (unsigned long)bufferA[next_stream];
+
+		update_flag(&read_flag, 1, addr_read);
+		update_flag(&write_flag, 1, addr_write);
+
 	}
 
 	gettimeofday(&end_time, NULL);
