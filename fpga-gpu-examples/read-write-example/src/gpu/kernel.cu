@@ -76,7 +76,14 @@ void run_new_stream_v1(uint32_t *bufferA, uint32_t *bufferB, uint32_t *ibuff, ui
 	cudaMemcpyAsync(bufferB, obuff, size, cudaMemcpyHostToDevice, stream_i);
 }
 
-void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream){
+void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size){
+	int numBlocks, numThreadsPerBlock = 1024;
+	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
+	vector_add<<<4*numBlocks, numThreadsPerBlock>>>(ibuff,obuff,vector_size);
+	cudaDeviceSynchronize();
+}
+
+void run_new_stream_v3(uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream){
 	int numBlocks, numThreadsPerBlock = 1024;
 	
 	cudaStream_t stream_i = streams[stream];

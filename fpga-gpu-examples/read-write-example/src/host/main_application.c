@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include <snap_tools.h>
 #include <libsnap.h>
@@ -122,6 +123,7 @@ int main(int argc, char *argv[])
     	unsigned long long int lcltime = 0x0ull;
 	uint32_t type = SNAP_ADDRTYPE_HOST_DRAM;
 	int max_iteration = 0, vector_size = 0;
+	bool host_buffering = false, verbose = false;
 	//int flags[MAX_STREAMS] = {1};
 	int exit_code = EXIT_SUCCESS;
 	snap_action_flag_t action_irq = (SNAP_ACTION_DONE_IRQ | SNAP_ATTACH_IRQ);
@@ -132,10 +134,12 @@ int main(int argc, char *argv[])
 		static struct option long_options[] = {
 			{ "vector_size",	 required_argument, NULL, 's' },
 			{ "max_iteration",	 required_argument, NULL, 'n' },
+			{ "host_buffering",	 no_argument, NULL, 'H' },
+			{ "enable_verbosity",	 no_argument, NULL, 'v' },
 			{ 0, no_argument, NULL, 0 },};		
 
 		ch = getopt_long(argc, argv,
-				"s:n:",
+				"s:n:Hv",
 				long_options, &option_index);
 		if (ch == -1)
 			break;
@@ -147,6 +151,12 @@ int main(int argc, char *argv[])
 				break;
 			case 'n':
 				num_iteration = optarg;
+				break;
+			case 'H':
+				host_buffering = true;
+				break;		
+			case 'v':
+				verbose = true;
 				break;		
 		}
 	}
@@ -169,14 +179,25 @@ int main(int argc, char *argv[])
 	memory_allocation_gpu(ibuff,size);
 	memory_allocation_gpu(obuff,size);
 
-	init_buffer(obuff[0],vector_size);
+	if (!host_buffering){
+		init_buffer(obuff[0],vector_size);
+	}
 
 	////////////////////////////////////////////////////////////////
 	//               MEMORY ALLOCATION ON HOST
 	////////////////////////////////////////////////////////////////
-
-	memory_allocation_host(bufferA,size);
-	memory_allocation_host(bufferB,size);
+	
+	if (host_buffering){
+		memory_allocation_host(bufferA,size);
+		memory_allocation_host(bufferB,size);
+	
+		// Data initialization
+		for (int i = 0; i < vector_size; i++){
+			for (int stream = 0; stream < MAX_STREAMS; stream++){
+				bufferB[stream][i] = i + 1000*stream;
+			}
+		}
+	}
 
 	write_flag = snap_malloc(64);
 	read_flag = snap_malloc(64);
@@ -185,11 +206,6 @@ int main(int argc, char *argv[])
 	write_flag[0] = 0x0;
 	read_flag[0] = 0x0;
 
-	for (int i = 0; i < vector_size; i++){
-		for (int stream = 0; stream < MAX_STREAMS; stream++){
-			bufferB[stream][i] = i + 1000*stream;
-		}
-	}
 
 	////////////////////////////////////////////////////////////////
 	//               FPGA ACTION PREPARATION
@@ -197,10 +213,14 @@ int main(int argc, char *argv[])
 
 	// prepare params to be written in MMIO registers for action
 	type  = SNAP_ADDRTYPE_HOST_DRAM;
-	//addr_read = (unsigned long)bufferB[0];
-	//addr_write = (unsigned long)bufferA[0];
-	addr_read = (unsigned long)obuff[0];
-	addr_write = (unsigned long)ibuff[0];
+	if (host_buffering){
+		addr_read = (unsigned long)bufferB[0];
+		addr_write = (unsigned long)bufferA[0];
+	} else {
+		addr_read = (unsigned long)obuff[0];
+		addr_write = (unsigned long)ibuff[0];
+	}
+	
 	addr_write_flag = (unsigned long)write_flag;
 	addr_read_flag = (unsigned long)read_flag;
 
@@ -242,7 +262,10 @@ int main(int argc, char *argv[])
 		printf("error while setting registers");
 	}
 	/* Start Action and wait for finish */
-	printf("Starting FPGA action .. \n");
+	if (verbose){
+		printf("Starting FPGA action .. \n");
+	}
+
 	snap_action_start(action);
 
 	//--- Collect the timestamp AFTER the call of the action
@@ -261,28 +284,38 @@ int main(int argc, char *argv[])
 	//int next_stream =0;
 
 	for (int iteration = 0; iteration < max_iteration; iteration++){
-		//stream = iteration % MAX_STREAMS;	
-		stream = 0;	
-		//next_stream = (iteration + 1) % MAX_STREAMS;	
+		stream = iteration % MAX_STREAMS;	
 
 		//FPGA is writing data in buffer
 		while((read_flag[0] == 1) || (write_flag[0] == 1)){ 
 			sleep(0.000004);
 		}
 
-		//printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
-		printf("Writting : [%d,%d, ... ,%d]\n",ibuff[0][0],ibuff[0][1],ibuff[0][vector_size-1]); 
-		//run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
-		run_new_stream_v2(ibuff[stream],obuff[stream],vector_size, stream);	   	
-		//printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
-		printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
-		
-		// FPGA can write new data	
-		addr_read = (unsigned long)obuff[0];
-		addr_write = (unsigned long)ibuff[0];
-		//addr_read = (unsigned long)bufferB[next_stream];
-		//addr_write = (unsigned long)bufferA[next_stream];
+		if (host_buffering){
+			//Running kernel on GPU
+			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
+			// Uptdating read/write addresses for FPGA
+			addr_read = (unsigned long)bufferB[stream];
+			addr_write = (unsigned long)bufferA[stream];
+			
+			if (verbose){
+				printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
+				printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
+			}
+		} else {
+			//Running kernel on GPU
+			run_new_stream_v2(ibuff[stream],obuff[stream],vector_size);
+			// Updating read/write adresses for FPGA
+			addr_read = (unsigned long)obuff[stream];
+			addr_write = (unsigned long)ibuff[stream];
 
+			if (verbose) {	   	
+				printf("Writting : [%d,%d, ... ,%d]\n",ibuff[0][0],ibuff[0][1],ibuff[0][vector_size-1]); 
+				printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
+			}
+		}	
+
+		// FPGA can write new data	
 		update_flag(&read_flag, 1, addr_read);
 		update_flag(&write_flag, 1, addr_write);
 
@@ -317,11 +350,15 @@ int main(int argc, char *argv[])
 	// Detach action + disallocate the card
 	snap_detach_action(action);
 	snap_card_free(card);
-
-	free_host(bufferA);
-	free_host(bufferB);
+	
+	if (host_buffering){
+		free_host(bufferA);
+		free_host(bufferB);
+	}
 	free_device(ibuff);
 	free_device(obuff);
+	free(read_flag);
+	free(write_flag);
 
 	exit(exit_code);
 
