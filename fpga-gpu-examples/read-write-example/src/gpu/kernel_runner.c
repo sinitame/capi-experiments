@@ -18,7 +18,7 @@ void *read_write_controller(void *unused){
 	int i = 0;
 	printf("Starting read_write_controller\n");
 	while (i<max_iteration) {
-		sleep(0.0001);
+		sleep(0.000005);
 		if (flags[i%MAX_STREAMS] == 1){
 
 			// Printing bufferA and bufferB element
@@ -92,7 +92,7 @@ int main(){
 			sleep(0.0001);
 		}
 		 
-		run_new_stream(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size);	   	
+		run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size, stream);	   	
 		
 		// FPGA can write new data	
 		pthread_mutex_lock(&lock);	
