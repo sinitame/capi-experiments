@@ -83,7 +83,10 @@ void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size, int st
 	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
 
 	vector_add<<<4*numBlocks, numThreadsPerBlock,0,stream_i>>>(ibuff,obuff,vector_size);
+	cudaStreamSynchronize(stream_i);
+	cudaStreamDestroy(stream_i);
 }
+
 
 void free_host(uint32_t *buffer[MAX_STREAMS]){
 	for (int i = 0; i < MAX_STREAMS; i++){
