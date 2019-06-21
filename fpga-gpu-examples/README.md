@@ -18,5 +18,35 @@ Example        | Description           | Key Concepts / Keywords
 [simple-vector-generator/][]| Simple example showing how an FPGA and a GPU can exchange data using SNAP Framework and NVIDIA CUDA|__Key__ __Concepts__<br> - Cross compilation <br> - SNAP Framework utilization<br> - CUDA kernel definition and memory copy handling
 [read-write-example/][]| This example shows different ways to efficiently exchange data between an FPGA and a GPU and to measure performance of each methods|__Key__ __Concepts__<br> - Cross compilation <br> - CUDA Streams <br> - Asynchronous memory copy and processing
 
+
+## Projects structure
+
+```
+project/
+  ├── README.md
+  ├── Makefile
+  ├── include/
+  │   ├── kernel.h
+  │   └── ...
+  └── src/                          # Contains all project sources
+      ├── fpga/                     # Contains all FPGA related sources
+      |   ├── Makefile (fpga)
+      │   ├── action_sw.c
+      │   ├── action_runner.c       # File to run only the FPGA related part of the project
+      |   └── images                # FPGA images directory
+      |       ├── primary.bin
+      |       └── secondary.bin     
+      ├── gpu/                      # Constains all GPU related sources
+      │   ├── Makefile (gpu)
+      │   ├── kernel.cu
+      |   └── kernel_runner.cu      # File to run only the GPU related part of the project
+      └── host/                     # Contains all HOST related sources
+          ├── Makefile (host)
+          ├── application_main.c    # File to run the all project (FPGA + GPU + HOST)
+          ├── application_1.c
+          ├── application_2.c
+          └── application_3.c
+```
+
 [simple-vector-generator/]:simple-vector-generator/
 [read-write-example/]:read-write-example/
