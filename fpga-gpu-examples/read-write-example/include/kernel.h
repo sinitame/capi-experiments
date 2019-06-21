@@ -4,9 +4,11 @@
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <getopt.h>
 #define MAX_STREAMS 1
-
-
 
 #ifdef __cplusplus
 extern "C" {
