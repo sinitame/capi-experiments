@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <getopt.h>
+#include <string.h>
 #define MAX_STREAMS 1
 
 #ifdef __cplusplus
