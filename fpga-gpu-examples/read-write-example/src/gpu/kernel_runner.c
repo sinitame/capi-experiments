@@ -1,16 +1,20 @@
 #include <kernel.h>
 
 uint32_t *bufferA[MAX_STREAMS], *bufferB[MAX_STREAMS];
+uint32_t *ibuff[MAX_STREAMS], *obuff[MAX_STREAMS];
 uint32_t *addr_read, *addr_write;
-int flags[MAX_STREAMS] = {1};
+int flags[MAX_STREAMS] = {0};
+int read_flag = 0, write_flag = 0;
 int max_iteration = 0;
 int vector_size = 0;
-pthread_mutex_t lock;
+bool host_buffering = false, verbose = false;
+pthread_mutex_t lock_fpga;
 
-void *read_write_controller(void *sleep_time);
+void *fpga_emulator(void *sleep_time);
+void *stream_runner(void *stream_arg);
 
 // Read/write controller thread
-void *read_write_controller(void *sleep_time){
+void *fpga_emulator(void *sleep_time){
 	int i = 0;
 	size_t size = vector_size*sizeof(uint32_t);
 	uint32_t *buffer1 = malloc(size);
@@ -21,8 +25,10 @@ void *read_write_controller(void *sleep_time){
 
 	printf("Starting read_write_controller\n");
 	while (i<max_iteration) {
-		sleep(*((float*)sleep_time));
-		if (flags[i%MAX_STREAMS] == 1){
+		sleep(0.000001);
+		if ((read_flag == 1) && (write_flag == 1)){
+		pthread_mutex_lock(&lock_fpga);
+			sleep(*((float*)sleep_time));
 			//pointer switch
 			switch (i%2){
 				case 0:
@@ -34,23 +40,54 @@ void *read_write_controller(void *sleep_time){
 					memcpy(addr_write,buffer1,size);
 					break;
 			}
-			// updating flag (mutex protected)
-			pthread_mutex_lock(&lock);
-			flags[i%MAX_STREAMS] = 0;
-			pthread_mutex_unlock(&lock);
-
+			read_flag = 0;
+			write_flag = 0;
 			i++;
+		pthread_mutex_unlock(&lock_fpga);
 		}
 	}
 	return NULL;	
 }
 
+void *stream_runner(void *stream_arg){
+	int stream_runner = *((int*)stream_arg);
+	int i = stream_runner;
+	while (i < max_iteration){
+		//waiting to know if it can be run
+		while( flags[stream_runner] == 0){
+			sleep(0.000001);
+		}
+		if (host_buffering){
+			//Running kernel on GPU
+			run_new_stream_v1(bufferA[stream_runner], bufferB[stream_runner], ibuff[stream_runner],obuff[stream_runner],vector_size,stream_runner);	   	
+
+			if (verbose){
+				printf("Writting (%d): [%d,%d, ... ,%d]\n",i,bufferA[stream_runner][0],bufferA[stream_runner][1],bufferA[stream_runner][vector_size-1]); 
+				printf("Received (%d): [%d,%d, ... ,%d]\n",i,bufferB[stream_runner][0],bufferB[stream_runner][1],bufferB[stream_runner][vector_size-1]); 
+			}
+
+		} else {
+			//Running kernel on GPU
+			run_new_stream_v2(ibuff[stream_runner], obuff[stream_runner], vector_size, stream_runner);
+
+			if (verbose) {	   	
+				printf("Writting (%d): [%d,%d, ... ,%d]\n",i,ibuff[stream_runner][0],ibuff[stream_runner][1],ibuff[stream_runner][vector_size-1]); 
+				printf("Received (%d): [%d,%d, ... ,%d]\n",i,obuff[stream_runner][0],obuff[stream_runner][1],obuff[stream_runner][vector_size-1]); 
+			}
+		}
+		
+		//Thread is available for new compute			
+		flags[stream_runner] = 0;
+		
+		i += MAX_STREAMS;
+	}
+	return NULL;
+}
+
 int main(int argc, char*argv[]){
 
-	uint32_t *ibuff[MAX_STREAMS], *obuff[MAX_STREAMS];
 	int ch; 
 	float sleep_time = 0;
-	bool host_buffering = false, verbose = false;
 	const char *num_iteration = NULL, *in_size = NULL, *wait_time = NULL;
 	size_t size;
 
@@ -114,7 +151,7 @@ int main(int argc, char*argv[]){
 	memory_allocation_gpu(obuff,size);
 
 	if (!host_buffering){
-		init_buffer(obuff[0],vector_size);
+		init_buffer(obuff,vector_size);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -134,11 +171,42 @@ int main(int argc, char*argv[]){
 	}
 
 	///////////////////////////////////////////////////////////////
-	//	 RUNNING READ/WRITE CONTROLLER ON SPECIFIC THREAD
+	//	 RUNNING FPGA EMULATOR ON SPECIFIC THREAD
 	///////////////////////////////////////////////////////////////
 
-	pthread_t thread;
+	pthread_t thread_fpga;
 	
+	pthread_mutex_init(&lock_fpga,NULL);
+
+	printf("Running FPGA emulator thread \n");
+	if (pthread_create(&thread_fpga, NULL, &fpga_emulator, (void *) &sleep_time)){
+		fprintf(stderr, "Error creating thread \n");
+		return 1;
+	}
+	
+
+	///////////////////////////////////////////////////////////////
+	//	 RUNNING  STREAM RUNNER THREADS
+	///////////////////////////////////////////////////////////////
+	init_streams();	
+	
+	pthread_t threads[MAX_STREAMS];
+	
+	printf("Running stream runner threads \n");
+	for (int stream = 0; stream < MAX_STREAMS; stream ++){
+		int *arg = malloc(sizeof(*arg));
+		*arg = stream;
+		if (pthread_create(&threads[stream], NULL, &stream_runner, arg)){
+			fprintf(stderr, "Error creating thread \n");
+			return 1;
+		}
+	}
+
+	///////////////////////////////////////////////////////////////
+	//             RUNNING GPU KERNEL PIPELINING
+	//////////////////////////////////////////////////////////////
+	int stream =0,next_stream =0;
+
 	if (host_buffering){
 		addr_read = bufferB[0];
 		addr_write = bufferA[0];
@@ -147,62 +215,51 @@ int main(int argc, char*argv[]){
 		addr_write = ibuff[0];
 	}
 
-	printf("Running thread \n");
-	if (pthread_create(&thread, NULL, &read_write_controller, (void *) &sleep_time)){
-		fprintf(stderr, "Error creating thread \n");
-		return 1;
-	}
+	read_flag = 1;
+	write_flag = 1;
 
-	if (pthread_mutex_init(&lock, NULL) != 0){
-		printf("Mutex initialization failed.\n");
-		return 1;
-	}
-
-	///////////////////////////////////////////////////////////////
-	//             RUNNING GPU KERNEL PIPELINING
-	//////////////////////////////////////////////////////////////
-	int stream =0,next_stream =0;
-
+	printf("starting pipelinning");
 	for (int iteration = 0; iteration < max_iteration; iteration++){
-		stream = iteration % MAX_STREAMS;	
-		next_stream = (iteration+1) % MAX_STREAMS;	
-
-		//FPGA is writing data in buffer
-		while(flags[stream] == 1){ 
+		
+		stream = iteration % MAX_STREAMS;
+		next_stream = (iteration+1) % MAX_STREAMS;
+		
+		// FPGA is reading/writing data in buffer
+		while((read_flag == 1)||(write_flag == 1)){ 
 			sleep(0.0001);
 		}
 
-		if (host_buffering){
-			//Running kernel on GPU
-			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
-
-			if (verbose){
-				printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
-				printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
-
-				addr_read = bufferB[next_stream];
-				addr_write = bufferA[next_stream];
-			}
+		// Telling the thread that it can run new job
+		flags[stream] = 1;
+		
+		// Wait if next thread is ready for new data
+		while (flags[next_stream] == 1){
+			sleep(0.0001);
+		}
+		
+		printf("starting new iteration \n");	
+		if (host_buffering) {	
+			addr_read = bufferB[next_stream];
+			addr_write = bufferA[next_stream];
 		} else {
-			//Running kernel on GPU
-			run_new_stream_v2(ibuff[stream],obuff[stream],vector_size);
-
 			addr_read = obuff[next_stream];
 			addr_write = ibuff[next_stream];
+		}
 
-			if (verbose) {	   	
-				printf("Writting : [%d,%d, ... ,%d]\n",ibuff[0][0],ibuff[0][1],ibuff[0][vector_size-1]); 
-				printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
-			}
-		}	
+		// Tell FPGA to process new data
+		read_flag = 1;
+		write_flag = 1;
 
-		// FPGA can write new data	
-		pthread_mutex_lock(&lock);	
-		flags[stream] = 1;
-		pthread_mutex_unlock(&lock);
 	}
 
-	pthread_join(thread, NULL);
+	pthread_join(thread_fpga, NULL);
+	for (int stream = 0; stream < MAX_STREAMS; stream ++){
+		if (pthread_join(threads[stream], NULL)){
+			fprintf(stderr, "Error joining thread \n");
+			return 1;
+		}
+	}
+
 	printf("Completed %d iterations successfully\n", max_iteration);
 
 	if (host_buffering){

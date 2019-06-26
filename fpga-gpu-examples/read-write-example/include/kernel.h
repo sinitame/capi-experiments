@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <getopt.h>
 #include <string.h>
-#define MAX_STREAMS 1
+#define MAX_STREAMS 3
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,10 +17,10 @@ extern "C" {
 
 void memory_allocation_host(uint32_t *buffer[MAX_STREAMS], size_t size);
 void memory_allocation_gpu(uint32_t *buffer[MAX_STREAMS], size_t size);
-void init_buffer(uint32_t *buffer, int vector_size);
+void init_buffer(uint32_t *buffer[MAX_STREAMS], int vector_size);
+void init_streams();
 void run_new_stream_v1(uint32_t *bufferA, uint32_t *bufferB, uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream);
-void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size);
-void run_new_stream_v3(uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream);
+void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream);
 void free_host(uint32_t *buffer[MAX_STREAMS]);
 void free_device(uint32_t *buffer[MAX_STREAMS]);
 
