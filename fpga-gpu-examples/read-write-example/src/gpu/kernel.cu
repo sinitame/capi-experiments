@@ -13,11 +13,11 @@ inline cudaError_t checkCuda(cudaError_t result)
 }
 
 // Data initialization kernel
-__global__ void init_data(uint32_t *buff, const int vector_size){
+__global__ void init_data(uint32_t *buff, const int vector_size, int stream){
 	int idx = threadIdx.x+blockDim.x*blockIdx.x;
 	int my_idx = idx;
 	while (my_idx < vector_size){
-		buff[my_idx] = my_idx;
+		buff[my_idx] = my_idx + 1000 * stream;
 		my_idx += gridDim.x*blockDim.x; // grid-striding loop
 	}
 }
@@ -59,7 +59,7 @@ void init_buffer(uint32_t *buffer[MAX_STREAMS], int vector_size){
 	int numBlocks, numThreadsPerBlock = 1024;
 	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
 	for (int stream = 0; stream < MAX_STREAMS; stream++){
-		init_data<<<4*numBlocks, numThreadsPerBlock>>>(buffer[stream],vector_size);
+		init_data<<<4*numBlocks, numThreadsPerBlock>>>(buffer[stream],vector_size, stream);
 	}
 	cudaDeviceSynchronize();
 
