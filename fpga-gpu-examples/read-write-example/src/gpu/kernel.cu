@@ -13,11 +13,11 @@ inline cudaError_t checkCuda(cudaError_t result)
 }
 
 // Data initialization kernel
-__global__ void init_data(uint32_t *buff, const int vector_size){
+__global__ void init_data(uint32_t *buff, const int vector_size, int stream){
 	int idx = threadIdx.x+blockDim.x*blockIdx.x;
 	int my_idx = idx;
 	while (my_idx < vector_size){
-		buff[my_idx] = my_idx;
+		buff[my_idx] = my_idx + 1000 * stream;
 		my_idx += gridDim.x*blockDim.x; // grid-striding loop
 	}
 }
@@ -49,31 +49,30 @@ void memory_allocation_gpu(uint32_t *buffer[MAX_STREAMS], size_t size){
 
 void memory_allocation_host(uint32_t *buffer[MAX_STREAMS], size_t size){
 
-	printf("Memory allocation HOST\n");
 	for (int stream = 0; stream < MAX_STREAMS; stream++){
 		checkCuda(cudaHostAlloc(&buffer[stream], size, cudaHostAllocDefault));
 	}
 }
 
-void init_buffer(uint32_t *buffer, int vector_size){
+void init_buffers(uint32_t *buffer[MAX_STREAMS], int vector_size){
 	int numBlocks, numThreadsPerBlock = 1024;
 	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
-	init_data<<<4*numBlocks, numThreadsPerBlock>>>(buffer,vector_size);
-
+	for (int stream = 0; stream < MAX_STREAMS; stream++){
+		init_data<<<4*numBlocks, numThreadsPerBlock>>>(buffer[stream],vector_size, stream);
+	}
+	cudaDeviceSynchronize();
 }
 
 
-void run_new_stream_v1(uint32_t *bufferA, uint32_t *bufferB, uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream){
+void run_new_stream_v1(uint32_t *bufferA, uint32_t *bufferB, uint32_t *ibuff, uint32_t *obuff, int vector_size){
 	int numBlocks, numThreadsPerBlock = 1024;
-	size_t size = vector_size*sizeof(uint32_t);
-	
-	//printf("Running kernel on GPU ..\n");
-	cudaStream_t stream_i = streams[stream];
+	size_t size = vector_size*sizeof(uint32_t);	
 	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
 	
-	cudaMemcpyAsync(ibuff,bufferA, size, cudaMemcpyDeviceToHost, stream_i);
-	vector_add<<<4*numBlocks, numThreadsPerBlock,0,stream_i>>>(ibuff,obuff,vector_size);
-	cudaMemcpyAsync(bufferB, obuff, size, cudaMemcpyHostToDevice, stream_i);
+	cudaMemcpy(ibuff,bufferA, size, cudaMemcpyDeviceToHost);
+	vector_add<<<4*numBlocks, numThreadsPerBlock>>>(ibuff,obuff,vector_size);
+	cudaMemcpy(bufferB, obuff, size, cudaMemcpyHostToDevice);
+	cudaDeviceSynchronize();
 }
 
 void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size){

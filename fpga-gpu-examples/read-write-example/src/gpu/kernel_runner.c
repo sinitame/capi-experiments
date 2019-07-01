@@ -32,6 +32,7 @@ void *fpga_emulator(void *sleep_time){
 	while (i<max_iteration) {
 		sleep(*((float*)sleep_time));
 		if (flags[i%MAX_STREAMS] == 1){
+			pthread_mutex_lock(&lock);
 			//pointer switch
 			switch (i%2){
 				case 0:
@@ -44,7 +45,6 @@ void *fpga_emulator(void *sleep_time){
 					break;
 			}
 			// updating flag (mutex protected)
-			pthread_mutex_lock(&lock);
 			flags[i%MAX_STREAMS] = 0;
 			pthread_mutex_unlock(&lock);
 
@@ -80,6 +80,8 @@ int main(int argc, char*argv[]){
 	float sleep_time = 0;
 	bool host_buffering = false, verbose = false;
 	const char *num_iteration = NULL, *in_size = NULL, *wait_time = NULL;
+	struct timeval begin_time, end_time; 
+	unsigned long long int lcltime = 0x0ull;
 	size_t size;
 
 	while (1) {
@@ -190,19 +192,22 @@ int main(int argc, char*argv[]){
 	//             RUNNING GPU KERNEL PIPELINING
 	//////////////////////////////////////////////////////////////
 	int stream =0,next_stream =0;
-
+	
+	printf("Starting pipelinning \n");
+	gettimeofday(&begin_time, NULL);
+	
 	for (int iteration = 0; iteration < max_iteration; iteration++){
 		stream = iteration % MAX_STREAMS;	
 		next_stream = (iteration+1) % MAX_STREAMS;	
 
 		//FPGA is writing data in buffer
 		while(flags[stream] == 1){ 
-			sleep(0.0001);
+			sleep(0.000001);
 		}
 
 		if (host_buffering){
 			//Running kernel on GPU with HOST buffering (Config 1)
-			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
+			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size);	   	
 
 			if (verbose){
 				printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
@@ -230,9 +235,17 @@ int main(int argc, char*argv[]){
 		pthread_mutex_unlock(&lock);
 	}
 
-	pthread_join(thread, NULL);
-	printf("Completed %d iterations successfully\n", max_iteration);
+	gettimeofday(&end_time, NULL);
 
+	pthread_join(thread, NULL);
+
+	printf("Completed %d iterations successfully\n", max_iteration);
+	
+	// Display the time of the action excecution
+	lcltime = (long long)(timediff_usec(&end_time, &begin_time));
+	fprintf(stdout, "GPU average processing time for %u iteration is %f usec\n",
+	max_iteration, (float)lcltime/(float)(max_iteration));
+	
 	if (host_buffering){
 		free_host(bufferA);
 		free_host(bufferB);
