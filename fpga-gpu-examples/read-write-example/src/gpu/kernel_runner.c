@@ -32,7 +32,6 @@ void *fpga_emulator(void *sleep_time){
 	while (i<max_iteration) {
 		sleep(*((float*)sleep_time));
 		if (flags[i%MAX_STREAMS] == 1){
-			pthread_mutex_lock(&lock);
 			//pointer switch
 			switch (i%2){
 				case 0:
@@ -45,6 +44,7 @@ void *fpga_emulator(void *sleep_time){
 					break;
 			}
 			// updating flag (mutex protected)
+			pthread_mutex_lock(&lock);
 			flags[i%MAX_STREAMS] = 0;
 			pthread_mutex_unlock(&lock);
 
@@ -67,6 +67,7 @@ void *fpga_emulator(void *sleep_time){
  * 	- w : Wait time (used to emulate FPGA)
  * 	- H : Enable HOST buffering (config 1)
  * 	- v : Enable verbosity (for results checking)
+ * 	- f : Enable FPGA Emulator
  *
  * WARNING ! This code only works with MAX_STREAMS=1 at this stage
  * (MAX_STREAMS is defined in includes/kernel.h)
@@ -78,7 +79,7 @@ int main(int argc, char*argv[]){
 	uint32_t *ibuff[MAX_STREAMS], *obuff[MAX_STREAMS];
 	int ch; 
 	float sleep_time = 0;
-	bool host_buffering = false, verbose = false;
+	bool host_buffering = false, verbose = false, fpga_emulation = false;
 	const char *num_iteration = NULL, *in_size = NULL, *wait_time = NULL;
 	struct timeval begin_time, end_time; 
 	unsigned long long int lcltime = 0x0ull;
@@ -89,13 +90,14 @@ int main(int argc, char*argv[]){
 		static struct option long_options[] = {
 			{ "vector_size",	 required_argument, NULL, 's' },
 			{ "max_iteration",	 required_argument, NULL, 'n' },
-			{ "sleep_time",	 	required_argument, NULL, 'w' },
+			{ "sleep_time",		required_argument, NULL, 'w' },
 			{ "host_buffering",	 no_argument, NULL, 'H' },
 			{ "enable_verbosity",	 no_argument, NULL, 'v' },
+			{ "enable_fpga_emulator",no_argument, NULL, 'f' },
 			{ 0, no_argument, NULL, 0 },};		
 
 		ch = getopt_long(argc, argv,
-				"s:n:w:Hv",
+				"s:n:w:Hvf",
 				long_options, &option_index);
 		if (ch == -1)
 			break;
@@ -116,6 +118,9 @@ int main(int argc, char*argv[]){
 				break;		
 			case 'v':
 				verbose = true;
+				break;		
+			case 'f':
+				fpga_emulation = true;
 				break;		
 		}
 	}
@@ -144,7 +149,11 @@ int main(int argc, char*argv[]){
 	memory_allocation_gpu(obuff,size);
 
 	if (!host_buffering){
-		init_buffers(obuff,vector_size);
+		if (fpga_emulation){
+			init_buffers(obuff,vector_size);
+		} else {
+			init_buffers(ibuff,vector_size);
+		}
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -164,34 +173,37 @@ int main(int argc, char*argv[]){
 	}
 
 	///////////////////////////////////////////////////////////////
-	//	 RUNNING READ/WRITE CONTROLLER ON SPECIFIC THREAD
+	//	 RUNNING FPGA EMULATOR ON SPECIFIC THREAD
 	///////////////////////////////////////////////////////////////
-
 	pthread_t thread;
 	
-	if (host_buffering){
-		addr_read = bufferB[0];
-		addr_write = bufferA[0];
-	}else{
-		addr_read = obuff[0];
-		addr_write = ibuff[0];
-	}
+	if (fpga_emulation) {
+		
+		if (host_buffering){
+			addr_read = bufferB[0];
+			addr_write = bufferA[0];
+		}else{
+			addr_read = obuff[0];
+			addr_write = ibuff[0];
+		}
 
-	printf("Running FPGA Emulator \n");
-	if (pthread_create(&thread, NULL, &fpga_emulator, (void *) &sleep_time)){
-		fprintf(stderr, "Error creating FPGA Emulator thread \n");
-		return 1;
-	}
+		printf("Running FPGA Emulator \n");
+		if (pthread_create(&thread, NULL, &fpga_emulator, (void *) &sleep_time)){
+			fprintf(stderr, "Error creating FPGA Emulator thread \n");
+			return 1;
+		}
 
-	if (pthread_mutex_init(&lock, NULL) != 0){
-		printf("Mutex initialization failed.\n");
-		return 1;
+		if (pthread_mutex_init(&lock, NULL) != 0){
+			printf("Mutex initialization failed.\n");
+			return 1;
+		}
 	}
 
 	///////////////////////////////////////////////////////////////
 	//             RUNNING GPU KERNEL PIPELINING
 	//////////////////////////////////////////////////////////////
 	int stream =0,next_stream =0;
+	uint32_t *tmp = NULL;
 	
 	printf("Starting pipelinning \n");
 	gettimeofday(&begin_time, NULL);
@@ -200,44 +212,64 @@ int main(int argc, char*argv[]){
 		stream = iteration % MAX_STREAMS;	
 		next_stream = (iteration+1) % MAX_STREAMS;	
 
-		//FPGA is writing data in buffer
-		while(flags[stream] == 1){ 
-			sleep(0.000001);
+		if (fpga_emulation){
+			//FPGA is writing data in buffer
+			while(flags[stream] == 1){ 
+				sleep(0.000001);
+			}
 		}
 
 		if (host_buffering){
 			//Running kernel on GPU with HOST buffering (Config 1)
 			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size);	   	
-
+			
+			// Setting parameters for the newt iteration
+			if (fpga_emulation){
+				addr_read = bufferB[next_stream];
+				addr_write = bufferA[next_stream];
+			} else {
+				tmp = bufferA[stream];
+				bufferA[stream] = bufferB[stream];
+				bufferB[stream] = tmp;
+			}	
+			
 			if (verbose){
 				printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
 				printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
-
-				addr_read = bufferB[next_stream];
-				addr_write = bufferA[next_stream];
 			}
+
 		} else {
 			//Running kernel on GPU without HOST buffering (Config 2)
 			run_new_stream_v2(ibuff[stream],obuff[stream],vector_size);
-
-			addr_read = obuff[next_stream];
-			addr_write = ibuff[next_stream];
+			
+			if (fpga_emulation){
+				addr_read = obuff[next_stream];
+				addr_write = ibuff[next_stream];
+			} else {
+				tmp = ibuff[stream];
+				ibuff[stream] = obuff[stream];
+				obuff[stream] = tmp;
+			}	
 
 			if (verbose) {	   	
 				printf("Writting : [%d,%d, ... ,%d]\n",ibuff[0][0],ibuff[0][1],ibuff[0][vector_size-1]); 
 				printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
 			}
 		}	
-
-		// FPGA can write new data	
-		pthread_mutex_lock(&lock);	
-		flags[stream] = 1;
-		pthread_mutex_unlock(&lock);
+		
+		if (fpga_emulation){
+			// FPGA can read/write new data	
+			pthread_mutex_lock(&lock);	
+			flags[stream] = 1;
+			pthread_mutex_unlock(&lock);
+		}
 	}
 
 	gettimeofday(&end_time, NULL);
 
-	pthread_join(thread, NULL);
+	if (fpga_emulation){
+		pthread_join(thread, NULL);
+	}
 
 	printf("Completed %d iterations successfully\n", max_iteration);
 	
