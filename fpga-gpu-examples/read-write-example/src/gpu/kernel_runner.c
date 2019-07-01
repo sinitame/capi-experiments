@@ -7,10 +7,19 @@ int max_iteration = 0;
 int vector_size = 0;
 pthread_mutex_t lock;
 
-void *read_write_controller(void *sleep_time);
+void *fpga_emulator(void *sleep_time);
 
-// Read/write controller thread
-void *read_write_controller(void *sleep_time){
+/*-----------------------------------------------
+ *          Function: FPGA Emulator
+ *-----------------------------------------------
+ * Emulate how FPGA would behave as if it called
+ * on the main application runner. This function 
+ * is run on a seperate stream.
+ *
+ * sleep_time: emulates the action processing time
+ */
+
+void *fpga_emulator(void *sleep_time){
 	int i = 0;
 	size_t size = vector_size*sizeof(uint32_t);
 	uint32_t *buffer1 = malloc(size);
@@ -44,6 +53,25 @@ void *read_write_controller(void *sleep_time){
 	}
 	return NULL;	
 }
+
+/*-----------------------------------------------
+ *            Main application
+ * ----------------------------------------------
+ *
+ * Main used to launch kernel_runner. It enables
+ * testing of the GPU part of the application.
+ *
+ * Options that can be set using command line:
+ * 	- n : Number of iterations
+ * 	- s : Size of the vector to copy
+ * 	- w : Wait time (used to emulate FPGA)
+ * 	- H : Enable HOST buffering (config 1)
+ * 	- v : Enable verbosity (for results checking)
+ *
+ * WARNING ! This code only works with MAX_STREAMS=1 at this stage
+ * (MAX_STREAMS is defined in includes/kernel.h)
+ */
+
 
 int main(int argc, char*argv[]){
 
@@ -114,7 +142,7 @@ int main(int argc, char*argv[]){
 	memory_allocation_gpu(obuff,size);
 
 	if (!host_buffering){
-		init_buffer(obuff[0],vector_size);
+		init_buffers(obuff,vector_size);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -147,9 +175,9 @@ int main(int argc, char*argv[]){
 		addr_write = ibuff[0];
 	}
 
-	printf("Running thread \n");
-	if (pthread_create(&thread, NULL, &read_write_controller, (void *) &sleep_time)){
-		fprintf(stderr, "Error creating thread \n");
+	printf("Running FPGA Emulator \n");
+	if (pthread_create(&thread, NULL, &fpga_emulator, (void *) &sleep_time)){
+		fprintf(stderr, "Error creating FPGA Emulator thread \n");
 		return 1;
 	}
 
@@ -173,7 +201,7 @@ int main(int argc, char*argv[]){
 		}
 
 		if (host_buffering){
-			//Running kernel on GPU
+			//Running kernel on GPU with HOST buffering (Config 1)
 			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
 
 			if (verbose){
@@ -184,7 +212,7 @@ int main(int argc, char*argv[]){
 				addr_write = bufferA[next_stream];
 			}
 		} else {
-			//Running kernel on GPU
+			//Running kernel on GPU without HOST buffering (Config 2)
 			run_new_stream_v2(ibuff[stream],obuff[stream],vector_size);
 
 			addr_read = obuff[next_stream];
@@ -209,6 +237,7 @@ int main(int argc, char*argv[]){
 		free_host(bufferA);
 		free_host(bufferB);
 	}
+
 	free_device(ibuff);
 	free_device(obuff);
 }
