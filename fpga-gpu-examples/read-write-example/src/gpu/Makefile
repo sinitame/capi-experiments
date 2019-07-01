@@ -42,15 +42,15 @@ compile_gpu: $(OBJECTS)
 ### Rules to build final executable
 $(TARGET): $(OBJECTS) $(RUNNER_OBJECTS)
 	@echo " Linking all GPU files to generate kernel_runner executable .."
-	@$(CC) -I $(INCLUDE_DIR) $^ $(LDLIBS) -o $(BIN_DIR)/$@
+	@$(CC) -I $(INCLUDE_DIR) $(LDLIBS) $^ -o $(BIN_DIR)/$@
 
 $(BUILD_DIR)/%.o: $(GPU_DIR)/%.c 
 	@echo " Creating GPU kernel_runner object files .."
-	@$(CC) -I $(INCLUDE_DIR) $(CFLAGS) -c $< -o $@
+	@$(CC) -I $(INCLUDE_DIR) $(CFLAGS) $(LDLIBS) -c $< -o $@
 
 $(BUILD_DIR)/%.cu.o : $(GPU_DIR)/%.cu
 	@echo " Creating CUDA object files .."
-	@nvcc -I $(INCLUDE_DIR) -c $< -o $@
+	@nvcc --default-stream per-thread -I $(INCLUDE_DIR) -c $< -o $@
 
 
 $(BUILD_DIR):

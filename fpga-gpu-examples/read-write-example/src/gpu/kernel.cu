@@ -75,14 +75,12 @@ void run_new_stream_v1(uint32_t *bufferA, uint32_t *bufferB, uint32_t *ibuff, ui
 	int numBlocks, numThreadsPerBlock = 1024;
 	size_t size = vector_size*sizeof(uint32_t);
 	
-	//printf("Running kernel on GPU ..\n");
 	cudaStream_t stream_i = streams[stream];
 	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
 	
 	cudaMemcpyAsync(ibuff,bufferA, size, cudaMemcpyDeviceToHost, stream_i);
-	vector_add<<<4*numBlocks, numThreadsPerBlock,0,stream_i>>>(ibuff,obuff,vector_size);
+	vector_add<<<(2*numBlocks)/MAX_STREAMS, numThreadsPerBlock,0,stream_i>>>(ibuff,obuff,vector_size);
 	cudaMemcpyAsync(bufferB, obuff, size, cudaMemcpyHostToDevice, stream_i);
-	cudaStreamSynchronize(stream_i);
 }
 
 void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size, int stream){
@@ -90,7 +88,11 @@ void run_new_stream_v2(uint32_t *ibuff, uint32_t *obuff, int vector_size, int st
 	cudaStream_t stream_i = streams[stream];
 	
 	cudaDeviceGetAttribute(&numBlocks, cudaDevAttrMultiProcessorCount, 0);	
-	vector_add<<<4*numBlocks, numThreadsPerBlock, 0, stream_i>>>(ibuff,obuff,vector_size);
+	vector_add<<<(2*numBlocks)/MAX_STREAMS, numThreadsPerBlock, 0, stream_i>>>(ibuff,obuff,vector_size);
+}
+
+void wait_completion(int stream){
+	cudaStream_t stream_i = streams[stream];
 	cudaStreamSynchronize(stream_i);
 }
 
