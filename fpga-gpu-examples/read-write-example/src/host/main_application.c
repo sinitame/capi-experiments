@@ -47,13 +47,7 @@
 int verbose_flag = 0;
 
 
-void memset_volatile(volatile void *s, char c, size_t n)
-{
-        volatile char *p = s;
-            while (n-- > 0) {
-                        *p++ = c;
-                            }
-}
+
 
 // Function that fills the MMIO registers / data structure 
 // // these are all data exchanged between the application and the action
@@ -180,7 +174,7 @@ int main(int argc, char *argv[])
 	memory_allocation_gpu(obuff,size);
 
 	if (!host_buffering){
-		init_buffer(obuff[0],vector_size);
+		init_buffers(obuff,vector_size);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -201,11 +195,8 @@ int main(int argc, char *argv[])
 
 	write_flag = snap_malloc(64);
 	read_flag = snap_malloc(64);
-	memset_volatile(write_flag, 0x0, 64);
-	memset_volatile(read_flag, 0x0, 64);
-	write_flag[0] = 0x0;
-	read_flag[0] = 0x0;
-
+	memset(write_flag, 0x0, 64);
+	memset(read_flag, 0x0, 64);
 
 	////////////////////////////////////////////////////////////////
 	//               FPGA ACTION PREPARATION
@@ -293,7 +284,7 @@ int main(int argc, char *argv[])
 
 		if (host_buffering){
 			//Running kernel on GPU
-			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size,stream);	   	
+			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size);	   	
 			// Uptdating read/write addresses for FPGA
 			addr_read = (unsigned long)bufferB[stream];
 			addr_write = (unsigned long)bufferA[stream];
