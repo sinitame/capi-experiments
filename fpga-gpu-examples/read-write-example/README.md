@@ -49,8 +49,8 @@ These configurations illustrates different use cases. The goal is to show perfor
 
 Action version | Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
 -------------- | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
-0001           | 1024          | 10000          |  4096 (4KB) x 2             |           38                |            |
-0001           | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           30                |            |
+0001           | 1024          | 10000          |  4096 (4KB) x 2             |           38                |  205 MB/s  |
+0001           | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           443               |  2.2 GB/s  |
 
 ### Configuration 2
 
@@ -58,5 +58,11 @@ Action version | Vector size   | Num Iterations | Total data transfer (bytes) | 
 
 ![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/read-write-example/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2-time-line.png "Config 2 time line")
 
+Action version | Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
+-------------- | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
+0001           | 1024          | 10000          |  4096 (4KB) x 2             |           16.8              |  465 MB/s  |
+0001           | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           301               |  3.2 GB/s  |
 
 ### Configuration 3
+
+Pipelining with CUDA Streams and CPU threads (Not implemented yet)
