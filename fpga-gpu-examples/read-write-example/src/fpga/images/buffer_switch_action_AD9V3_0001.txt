@@ -1,0 +1,21 @@
+------------------------------------------------------------------------------
+image_name : buffer_switch_action_AD9V3_0001
+target_device : AD9V3
+capi_version : CAPI 2.0
+timing constrains : 4.2ns (WNS:-276ps)
+------------------------------------------------------------------------------
+
+Description : This action can read and write data from/to the host in two
+internal buffers of size vector_size. Action will read/write at addresses
+located in read_flag and write flag variables when read_flag and write_flag 
+tags will be set to 1 (read_flag[0], write_flag[0]). When action has finished 
+these tags are set to 0 and action will wait for new data to be read/write.
+Action will performe read/write 'max_iteration' times.
+When all read/writes will be done, action will return SNAP_RETC_SUCCESS and
+will exit without error.
+
+
+IMPORTANT NOTES :
+	- Buffer size are limited to MAX_SIZE = 1024*128 (size of uint32_t)
+	- Read and writes are perfomed concurrently (action will wait until
+	  read_flag[0] and write_flag[0] equal to 1).
