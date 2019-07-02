@@ -43,9 +43,9 @@ These configurations illustrates different use cases. The goal is to show perfor
 
 ### Configuration 1
 
-![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/read-write-example/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-1.png "Config 1 figure")
+![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-1.png "Config 1 figure")
 
-![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/read-write-example/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-1-time-line.png "Config 1 time line")
+![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-1-time-line.png "Config 1 time line")
 
 | Mode |Action version| Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
 | ---- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
@@ -58,9 +58,9 @@ These configurations illustrates different use cases. The goal is to show perfor
 
 ### Configuration 2
 
-![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/read-write-example/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2.png "Config 2 figure")
+![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2.png "Config 2 figure")
 
-![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/read-write-example/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2-time-line.png "Config 2 time line")
+![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2-time-line.png "Config 2 time line")
 
 | Mode |Action version| Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
 |----- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
