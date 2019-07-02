@@ -47,14 +47,14 @@ These configurations illustrates different use cases. The goal is to show perfor
 
 ![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/read-write-example/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-1-time-line.png "Config 1 time line")
 
-Action version | Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
--------------- | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
-0001           | 1024          | 10000          |  4096 (4KB) x 2             |           38                |  205 MB/s  |
-0001           | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           443               |  2.2 GB/s  |
-GPU only       | 1024          | 10000          |  4096 (4KB) x 2             |           36.2              |  215 MB/s  |
-GPU only       | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           255               |  3.8 GB/s  |
-FPGA only      | 1024          | 10000          |  4096 (4KB) x 2             |           4.8               |  1.6 GB/s  |
-FPGA only      | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           N/A               |     N/A    |
+| Mode |Action version| Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
+| ---- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
+| ALL  |  0001        | 1024          | 10000          |  4096 (4KB) x 2             |           38                |  205 MB/s  |
+| ALL  |  0001        | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           443               |  2.2 GB/s  |
+|GPU only  |   0001   | 1024          | 10000          |  4096 (4KB) x 2             |           36.2              |  215 MB/s  |
+|GPU only  |   0001   | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           255               |  3.8 GB/s  |
+|FPGA only |   0001   | 1024          | 10000          |  4096 (4KB) x 2             |           4.8               |  1.6 GB/s  |
+|FPGA only |   0001   | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           N/A               |     N/A    |
 
 ### Configuration 2
 
@@ -62,14 +62,14 @@ FPGA only      | 1024x128      | 10000          |  524288 (0.5MB) x 2         | 
 
 ![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/read-write-example/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2-time-line.png "Config 2 time line")
 
-Action version | Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
--------------- | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
-0001           | 1024          | 10000          |  4096 (4KB) x 2             |           16.8              |  465 MB/s  |
-0001           | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           301               |  3.2 GB/s  |
-GPU only       | 1024          | 10000          |  4096 (4KB) x 2             |           12.4              |  630 MB/s  |
-GPU only       | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           12.8              |  76.2 GB/s |
-FPGA only      | 1024          | 10000          |  4096 (4KB) x 2             |           4.8               |  1.6 GB/s  |
-FPGA only      | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           277               |  3.5 GB/s  |
+| Mode |Action version| Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
+|----- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
+| ALL  |  0001        | 1024          | 10000          |  4096 (4KB) x 2             |           16.8              |  465 MB/s  |
+| ALL  |  0001        | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           301               |  3.2 GB/s  |
+|GPU only  |   0001   | 1024          | 10000          |  4096 (4KB) x 2             |           12.4              |  630 MB/s  |
+|GPU only  |   0001   | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           12.8              |  76.2 GB/s |
+|FPGA only |   0001   | 1024          | 10000          |  4096 (4KB) x 2             |           4.8               |  1.6 GB/s  |
+|FPGA only |   0001   | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           277               |  3.5 GB/s  |
 
 ### Configuration 3
 
