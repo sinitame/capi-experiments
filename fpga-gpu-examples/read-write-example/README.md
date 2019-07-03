@@ -9,6 +9,14 @@ In order to run this example, you will need the following :
 * SNAP sources [SNAP official repository](https://github.com/open-power/snap)
 * A CAPI2.0 compatible FPGA board already configured to support SNAP (only AD9V3 supported for now)
 
+To run the code, FPGA card needs to be flashed with the action binaries. Binaries files can be found in `src/fpga/images/` and the card can be fashed using capi-utils functions:
+
+* Step 1 : capi-flash-script XX_primary.bin XX_secondary.bin
+* Step 2 : go to SNAP sources git directory and run `make software` and `source snap_path.sh` to compile and add snap utils functions to the path.
+* Step 3 : run `snap_maint -v` to see if FPGA action is recognised by the HOST
+
+Now you are sure that the FPGA is flashed with your action ! 
+
 ## Example overview
 
 The aim of this example is to show different methods to exchange data between a HOST, an FPGA and a GPU. Even if this code is not useful in practice it shows how to design an application with FPGA and GPU acceleration and it allows to make performance measurements with different configuration.
@@ -49,7 +57,7 @@ ibuff[i]*2 and writes the result in obuff.
 
 **Important note :** Throughputs take into consideration (FPGA flags value
 checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
-+ GPU processing time + FPGA flags value checking in memory + FPGA data copy from GPU or HOST memory to internal
+\+ GPU processing time + FPGA flags value checking in memory + FPGA data copy from GPU or HOST memory to internal
   buffers)
 
 ### Configuration 1
