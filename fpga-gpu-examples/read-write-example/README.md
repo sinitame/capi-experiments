@@ -5,7 +5,7 @@
 In order to run this example, you will need the following :
 
 * A Power9 server (tested on AC922)
-* Nvidia cuda compiler (nvcc)
+* Nvidia CUDA Toolkit (nvcc)
 * SNAP sources [SNAP official repository](https://github.com/open-power/snap)
 * A CAPI2.0 compatible FPGA board already configured to support SNAP (only AD9V3 supported for now)
 * [capi-utils](https://github.com/ibm-capi/capi-utils) tools installed 
@@ -82,7 +82,7 @@ checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
 
 ![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2-time-line.png "Config 2 time line")
 
-| Mode     |Action version| Vector size   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
+| Mode     |Action version| Vector size   | Num Iterations | Total data transfer (bytes)* | Average iteration time (us) | Throughput |
 |--------- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
 |FPGA+GPU  |  0001        | 1024          | 10000          |  4096 (4KB) x 2             |           16.8              |  465 MB/s  |
 |FPGA+GPU  |  0001        | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           301               |  3.2 GB/s  |
@@ -90,6 +90,8 @@ checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
 |GPU only  |  N/A         | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           12.8              |  76.2 GB/s |
 |FPGA only |  0001        | 1024          | 10000          |  4096 (4KB) x 2             |           4.8               |  1.6 GB/s  |
 |FPGA only |  0001        | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           277               |  3.5 GB/s  |
+
+* (x2) is because we consider bidirectional data transferts.
 
 ### Configuration 3
 
