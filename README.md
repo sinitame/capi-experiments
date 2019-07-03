@@ -12,6 +12,6 @@ __Examples list__
 
 Example        | Description           | Key Concepts / Keywords 
 ---------------|-----------------------|-------------------------
-[fpga-gpu-example/][]| Simple example showing how an FPGA and a GPU can exchange data using SNAP Framework and NVIDIA CUDA|__Key__ __Concepts__<br> - Cross compilation <br> - SNAP Framework utilization<br> - CUDA kernel definition and memory copy handling
+[fpga-gpu-examples/][]| Simple example showing how an FPGA and a GPU can exchange data using SNAP Framework and NVIDIA CUDA|__Key__ __Concepts__<br> - Cross compilation <br> - SNAP Framework utilization<br> - CUDA kernel definition and memory copy handling
 
-[fpga-gpu-example/]:fpga-gpu-example/
+[fpga-gpu-examples/]:fpga-gpu-examples/
