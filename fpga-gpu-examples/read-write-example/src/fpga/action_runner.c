@@ -41,8 +41,6 @@
 #include <action_create_vector.h>
 #include <snap_hls_if.h>
 
-int verbose_flag = 0;
-
 // Function that fills the MMIO registers / data structure 
 // these are all data exchanged between the application and the action
 static void snap_prepare_gpu_example(struct snap_job *cjob,
@@ -83,9 +81,40 @@ static void update_flag(uint8_t **flag, uint8_t flag_value, uint64_t addr){
 
 }
 
-/*    ACTION RUNNER for the read/write action example                    */
-/* This application will always be run on CPU and will call either       */
-/* a software action (CPU executed) or a hardware action (FPGA executed) */
+static void usage(const char *prog)
+{
+	printf("\n Usage: %s [-h] [-v, --verbose]\n"
+	"  -s, --vector_size <N>     	size of the uint32_t buffer array.\n"
+	"  -n, --num_iteration <N>   	number of iterations in a run.\n"
+	"\n"
+  	"WARNING ! This code only works with vector_size < 1024x128 \n"
+	"because of FPGA in-memory limitations on this version of the image).\n"
+	"\n"
+	"Example usage:\n"
+	"-----------------------\n"
+	"action_runner -s 1024 -n 10 -v\n"
+	"\n",
+        prog);
+}
+
+
+
+/*-----------------------------------------------
+ *            Main application
+ * ----------------------------------------------
+ *
+ * Main used to launch action_runner. It enables
+ * testing of the FPGA part of the application.
+ *
+ * Options that can be set using command line:
+ * 	- n : Number of iterations
+ * 	- s : Size of the uint32_t buffer array
+ * 	- v : Enable verbosity (for results checking)
+ *
+ * WARNING ! This code only works with vector_size < 1024x128
+ * because of FPGA in-memory limitations on this version of the image.
+ */
+
 int main(int argc, char *argv[])
 {
 	// Init of all the default values used 
@@ -119,12 +148,13 @@ int main(int argc, char *argv[])
 		int option_index = 0;
 		static struct option long_options[] = {
 			{ "vector_size",	 required_argument, NULL, 's' },
-			{ "max_iteration",	 required_argument, NULL, 'n' },
-			{ "enable_verbosity",	 no_argument, NULL, 'v' },
+			{ "num_iteration",	 required_argument, NULL, 'n' },
+			{ "verbose",	 no_argument, NULL, 'v' },
+			{ "help", no_argument, NULL, 'h' },
 			{ 0, no_argument, NULL, 0 },};		
 
 		ch = getopt_long(argc, argv,
-				"s:n:v",
+				"s:n:vh",
 				long_options, &option_index);
 		if (ch == -1)
 			break;
@@ -140,11 +170,27 @@ int main(int argc, char *argv[])
 			case 'v':
 				verbose = true;
 				break;		
+			case 'h':
+				usage(argv[0]);
+				exit(EXIT_SUCCESS);
+				break;
+			default:
+				usage(argv[0]);
+				exit(EXIT_FAILURE);
+				break;	
 		}
 	}
 
+	if (argc == 1) {       // to provide help when program is called without argument
+          usage(argv[0]);
+          exit(EXIT_FAILURE);}
+
 	if (in_size != NULL) {
 		vector_size = atoi(in_size);
+		if (vector_size>MAX_SIZE){
+			printf("Vector size should smaller than %d \n",MAX_SIZE);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if (num_iteration != NULL) {

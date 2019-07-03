@@ -44,11 +44,6 @@
 
 #include <kernel.h>
 
-int verbose_flag = 0;
-
-
-
-
 // Function that fills the MMIO registers / data structure 
 // // these are all data exchanged between the application and the action
 static void snap_prepare_gpu_example(struct snap_job *cjob,
@@ -89,9 +84,49 @@ static void update_flag(uint8_t **flag, uint8_t flag_value, uint64_t addr){
 
 }
 
-/* main program of the application for the hls_helloworld example        */
-/* This application will always be run on CPU and will call either       */
-/* a software action (CPU executed) or a hardware action (FPGA executed) */
+
+static void usage(const char *prog)
+{
+	printf("\n Usage: %s [-h] [-v, --verbose]\n"
+	"  -s, --vector_size <N>     	size of the uint32_t buffer arrays.\n"
+	"  -n, --num_iteration <N>   	number of iterations in a run.\n"
+	"  -H, --host_buffering      	enable host buffering.\n"
+	"\n"
+  	"WARNING ! This code only works with MAX_STREAMS=1 at this stage\n"
+ 	"(MAX_STREAMS is defined in includes/kernel.h)\n"
+	"\n"
+  	"WARNING ! This code only works with vector_size < 1024x128 \n"
+	"because of FPGA in-memory limitations on this version of the image).\n"
+	"\n"
+	"Example usage:\n"
+	"-----------------------\n"
+	"main_application -s 1024 -n 10 -v\n"
+	"\n",
+        prog);
+}
+
+/*-----------------------------------------------
+ *            Main application
+ * ----------------------------------------------
+ *
+ * Main used to launch main_application. It enables
+ * testing of the all application (FPGA+GPU).
+ *
+ * Options that can be set using command line:
+ * 	- n : Number of iterations
+ * 	- s : Size of the uint32_t buffer arrays
+ * 	- w : Wait time (used to emulate FPGA)
+ * 	- H : Enable HOST buffering (config 1)
+ * 	- v : Enable verbosity (for results checking)
+ * 	- f : Enable FPGA Emulation
+ *
+ * WARNING ! This code only works with MAX_STREAMS=1 at this stage
+ * (MAX_STREAMS is defined in includes/kernel.h)
+ *
+ * WARNING ! This code only works with vector_size < 1024x128
+ * because of FPGA in-memory limitations on this version of the image.
+ */
+
 int main(int argc, char *argv[])
 {
 	// Init of all the default values used 
@@ -127,13 +162,14 @@ int main(int argc, char *argv[])
 		int option_index = 0;
 		static struct option long_options[] = {
 			{ "vector_size",	 required_argument, NULL, 's' },
-			{ "max_iteration",	 required_argument, NULL, 'n' },
+			{ "num_iteration",	 required_argument, NULL, 'n' },
 			{ "host_buffering",	 no_argument, NULL, 'H' },
-			{ "enable_verbosity",	 no_argument, NULL, 'v' },
+			{ "verbose",	 no_argument, NULL, 'v' },
+			{ "help", no_argument, NULL, 'h' },
 			{ 0, no_argument, NULL, 0 },};		
 
 		ch = getopt_long(argc, argv,
-				"s:n:Hv",
+				"s:n:Hvh",
 				long_options, &option_index);
 		if (ch == -1)
 			break;
@@ -151,12 +187,28 @@ int main(int argc, char *argv[])
 				break;		
 			case 'v':
 				verbose = true;
-				break;		
+				break;
+			case 'h':
+				usage(argv[0]);
+				exit(EXIT_SUCCESS);
+				break;
+			default:
+				usage(argv[0]);
+				exit(EXIT_FAILURE);
+				break;	
 		}
 	}
 
+	if (argc == 1) {       // to provide help when program is called without argument
+          usage(argv[0]);
+          exit(EXIT_FAILURE);}		
+
 	if (in_size != NULL) {
 		vector_size = atoi(in_size);
+		if (vector_size>MAX_SIZE){
+			printf("Vector size should smaller than %d \n",MAX_SIZE);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if (num_iteration != NULL) {

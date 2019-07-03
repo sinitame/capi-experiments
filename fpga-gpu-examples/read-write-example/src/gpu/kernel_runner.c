@@ -54,6 +54,25 @@ void *fpga_emulator(void *sleep_time){
 	return NULL;	
 }
 
+static void usage(const char *prog)
+{
+	printf("\n Usage: %s [-h] [-v, --verbose]\n"
+	"  -s, --vector_size <N>     	size of the uint32_t buffer array.\n"
+	"  -n, --num_iteration <N>   	number of iterations in a run.\n"
+	"  -w, --wait_time <duration> 	emulates FPGA processing time.\n"
+	"  -H, --host_buffering      	enable host buffering.\n"
+	"  -f, --fpga_emulation		enable FPGA emulation.\n"
+	"\n"
+  	"WARNING ! This code only works with MAX_STREAMS=1 at this stage\n"
+ 	"(MAX_STREAMS is defined in includes/kernel.h)\n"
+	"\n"
+	"Example usage:\n"
+	"-----------------------\n"
+	"kernel_runner -s 1024 -n 10 -v\n"
+	"\n",
+        prog);
+}
+
 /*-----------------------------------------------
  *            Main application
  * ----------------------------------------------
@@ -63,11 +82,11 @@ void *fpga_emulator(void *sleep_time){
  *
  * Options that can be set using command line:
  * 	- n : Number of iterations
- * 	- s : Size of the vector to copy
+ * 	- s : Size of the uint32_t buffer array
  * 	- w : Wait time (used to emulate FPGA)
  * 	- H : Enable HOST buffering (config 1)
  * 	- v : Enable verbosity (for results checking)
- * 	- f : Enable FPGA Emulator
+ * 	- f : Enable FPGA Emulation
  *
  * WARNING ! This code only works with MAX_STREAMS=1 at this stage
  * (MAX_STREAMS is defined in includes/kernel.h)
@@ -89,15 +108,16 @@ int main(int argc, char*argv[]){
 		int option_index = 0;
 		static struct option long_options[] = {
 			{ "vector_size",	 required_argument, NULL, 's' },
-			{ "max_iteration",	 required_argument, NULL, 'n' },
-			{ "sleep_time",		required_argument, NULL, 'w' },
+			{ "num_iteration",	 required_argument, NULL, 'n' },
+			{ "wait_time",		required_argument, NULL, 'w' },
 			{ "host_buffering",	 no_argument, NULL, 'H' },
-			{ "enable_verbosity",	 no_argument, NULL, 'v' },
-			{ "enable_fpga_emulator",no_argument, NULL, 'f' },
+			{ "verbosity",	 	no_argument, NULL, 'v' },
+			{ "fpga_emulation",	no_argument, NULL, 'f' },
+			{ "help", no_argument, NULL, 'h' },
 			{ 0, no_argument, NULL, 0 },};		
 
 		ch = getopt_long(argc, argv,
-				"s:n:w:Hvf",
+				"s:n:w:Hvfh",
 				long_options, &option_index);
 		if (ch == -1)
 			break;
@@ -121,9 +141,21 @@ int main(int argc, char*argv[]){
 				break;		
 			case 'f':
 				fpga_emulation = true;
-				break;		
+				break;
+			case 'h':
+				usage(argv[0]);
+				exit(EXIT_SUCCESS);
+				break;
+			default:
+				usage(argv[0]);
+				exit(EXIT_FAILURE);
+				break;	
 		}
 	}
+
+	if (argc == 1) {       // to provide help when program is called without argument
+          usage(argv[0]);
+          exit(EXIT_FAILURE);}
 
 	if (in_size != NULL) {
 		vector_size = atoi(in_size);
