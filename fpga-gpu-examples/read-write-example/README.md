@@ -77,7 +77,7 @@ checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
 |GPU only  |  N/A         | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           255               |  3.8 GB/s  |
 
 
-* size in bytes = vector size * sizeof(uint32_t) and x2 is because we consider bidirectional data transferts.
+\* size in bytes = vector size * sizeof(uint32_t) and x2 is because we consider bidirectional data transferts.
 
 ### Configuration 2
 
@@ -94,7 +94,7 @@ checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
 |FPGA only |  0001        | 1024          | 10000          |  4096 (4KB) x 2             |           4.8               |  1.6 GB/s  |
 |FPGA only |  0001        | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           277               |  3.5 GB/s  |
 
-* size in bytes = vector size * sizeof(uint32_t) and x2 is because we consider bidirectional data transferts.
+\* size in bytes = vector size * sizeof(uint32_t) and x2 is because we consider bidirectional data transferts.
 
 ### Configuration 3
 
