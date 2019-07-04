@@ -69,12 +69,15 @@ checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
 
 ![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-1-time-line.png "Config 1 time line")
 
-| Mode     |Action version| Vector size (uint32_t)   | Num Iterations | Total data transfer (bytes) | Average iteration time (us) | Throughput |
+| Mode     |Action version| Vector size (uint32_t)   | Num Iterations | Total data transfer (bytes)* | Average iteration time (us) | Throughput |
 | -------- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
 |FPGA+GPU  |  0001        | 1024          | 10000          |  4096 (4KB) x 2             |           38                |  205 MB/s  |
 |FGPA+GPU  |  0001        | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           443               |  2.2 GB/s  |
 |GPU only  |  N/A         | 1024          | 10000          |  4096 (4KB) x 2             |           36.2              |  215 MB/s  |
 |GPU only  |  N/A         | 1024x128      | 10000          |  524288 (0.5MB) x 2         |           255               |  3.8 GB/s  |
+
+
+* (x2) is because we consider bidirectional data transferts.
 
 ### Configuration 2
 
