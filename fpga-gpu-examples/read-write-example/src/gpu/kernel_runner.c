@@ -57,20 +57,20 @@ void *fpga_emulator(void *sleep_time){
 static void usage(const char *prog)
 {
 	printf("\n Usage: %s [-h] [-v, --verbose]\n"
-	"  -s, --vector_size <N>     	size of the uint32_t buffer array.\n"
-	"  -n, --num_iteration <N>   	number of iterations in a run.\n"
-	"  -w, --wait_time <duration> 	emulates FPGA processing time.\n"
-	"  -H, --host_buffering      	enable host buffering.\n"
-	"  -f, --fpga_emulation		enable FPGA emulation.\n"
-	"\n"
-  	"WARNING ! This code only works with MAX_STREAMS=1 at this stage\n"
- 	"(MAX_STREAMS is defined in includes/kernel.h)\n"
-	"\n"
-	"Example usage:\n"
-	"-----------------------\n"
-	"kernel_runner -s 1024 -n 10 -v\n"
-	"\n",
-        prog);
+			"  -s, --vector_size <N>     	size of the uint32_t buffer array.\n"
+			"  -n, --num_iteration <N>   	number of iterations in a run.\n"
+			"  -w, --wait_time <duration> 	emulates FPGA processing time.\n"
+			"  -H, --host_buffering      	enable host buffering to test config 1 (default is config 2).\n"
+			"  -f, --fpga_emulation		enable FPGA emulation.\n"
+			"\n"
+			"WARNING ! This code only works with MAX_STREAMS=1 at this stage\n"
+			"(MAX_STREAMS is defined in includes/kernel.h)\n"
+			"\n"
+			"Example usage:\n"
+			"-----------------------\n"
+			"kernel_runner -s 1024 -n 10 -v\n"
+			"\n",
+			prog);
 }
 
 /*-----------------------------------------------
@@ -154,8 +154,8 @@ int main(int argc, char*argv[]){
 	}
 
 	if (argc == 1) {       // to provide help when program is called without argument
-          usage(argv[0]);
-          exit(EXIT_FAILURE);}
+		usage(argv[0]);
+		exit(EXIT_FAILURE);}
 
 	if (in_size != NULL) {
 		vector_size = atoi(in_size);
@@ -164,7 +164,7 @@ int main(int argc, char*argv[]){
 	if (num_iteration != NULL) {
 		max_iteration = atoi(num_iteration);
 	}
-	
+
 	if (wait_time != NULL) {
 		sleep_time = atof(wait_time);
 		printf("sleep : %f \n",sleep_time);
@@ -208,9 +208,9 @@ int main(int argc, char*argv[]){
 	//	 RUNNING FPGA EMULATOR ON SPECIFIC THREAD
 	///////////////////////////////////////////////////////////////
 	pthread_t thread;
-	
+
 	if (fpga_emulation) {
-		
+
 		if (host_buffering){
 			addr_read = bufferB[0];
 			addr_write = bufferA[0];
@@ -236,10 +236,10 @@ int main(int argc, char*argv[]){
 	//////////////////////////////////////////////////////////////
 	int stream =0,next_stream =0;
 	uint32_t *tmp = NULL;
-	
+
 	printf("Starting pipelinning \n");
 	gettimeofday(&begin_time, NULL);
-	
+
 	for (int iteration = 0; iteration < max_iteration; iteration++){
 		stream = iteration % MAX_STREAMS;	
 		next_stream = (iteration+1) % MAX_STREAMS;	
@@ -254,7 +254,7 @@ int main(int argc, char*argv[]){
 		if (host_buffering){
 			//Running kernel on GPU with HOST buffering (Config 1)
 			run_new_stream_v1(bufferA[stream],bufferB[stream],ibuff[stream],obuff[stream],vector_size);	   	
-			
+
 			// Setting parameters for the newt iteration
 			if (fpga_emulation){
 				addr_read = bufferB[next_stream];
@@ -264,7 +264,7 @@ int main(int argc, char*argv[]){
 				bufferA[stream] = bufferB[stream];
 				bufferB[stream] = tmp;
 			}	
-			
+
 			if (verbose){
 				printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0][0],bufferA[0][1],bufferA[0][vector_size-1]); 
 				printf("Received : [%d,%d, ... ,%d]\n",bufferB[0][0],bufferB[0][1],bufferB[0][vector_size-1]); 
@@ -273,7 +273,7 @@ int main(int argc, char*argv[]){
 		} else {
 			//Running kernel on GPU without HOST buffering (Config 2)
 			run_new_stream_v2(ibuff[stream],obuff[stream],vector_size);
-			
+
 			if (fpga_emulation){
 				addr_read = obuff[next_stream];
 				addr_write = ibuff[next_stream];
@@ -288,7 +288,7 @@ int main(int argc, char*argv[]){
 				printf("Received : [%d,%d, ... ,%d]\n",obuff[0][0],obuff[0][1],obuff[0][vector_size-1]); 
 			}
 		}	
-		
+
 		if (fpga_emulation){
 			// FPGA can read/write new data	
 			pthread_mutex_lock(&lock);	
@@ -304,12 +304,13 @@ int main(int argc, char*argv[]){
 	}
 
 	printf("Completed %d iterations successfully\n", max_iteration);
-	
+
 	// Display the time of the action excecution
 	lcltime = (long long)(timediff_usec(&end_time, &begin_time));
-	fprintf(stdout, "GPU average processing time for %u iteration is %f usec\n",
-	max_iteration, (float)lcltime/(float)(max_iteration));
-	
+	fprintf(stdout, "GPU average processing time for %u iteration is %f usec with config %d\n",
+			max_iteration, (float)lcltime/(float)(max_iteration),
+			host_buffering ? 1 : 2);
+
 	if (host_buffering){
 		free_host(bufferA);
 		free_host(bufferB);

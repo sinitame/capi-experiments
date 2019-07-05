@@ -56,7 +56,7 @@ when read(write) flag is set to 1. Data is read(written) into internal buffers a
 When FPGA finishes its read(write) process, (read)write flag is set to 0 to notify the HOST that data is ready.
 
 In all configurations, when told to do so, GPU reads data in ibuff, then compute
-ibuff[i]*2 and writes the result in obuff.
+ibuff[i]x2 and writes the result in obuff.
 
 **Important note :** Throughput results take into consideration (FPGA flags value
 checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
@@ -69,12 +69,12 @@ checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
 
 ![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-1-time-line.png "Config 1 time line")
 
-| Mode     |Action version| Vector size (uint32_t)   | Num Iterations | Total data transfer (bytes)* | Average iteration time (us) | Throughput |
-| -------- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
-|FPGA+GPU  |  0001        | 1024          | 10000          |  4096 x 2             |           38                |  205 MB/s  |
-|FGPA+GPU  |  0001        | 1024x128      | 10000          |  524288 x 2         |           443               |  2.2 GB/s  |
+| Mode     |Action version| Vector size (uint32_t)   | Num Iterations | Total data transfer (bytes)\* | Average iteration time (us) | Throughput |
+| -------- | ---------------- | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
+|FPGA+GPU  |(0x1014100f) 0001 | 1024          | 10000          |  4096 x 2             |           38                |  205 MB/s  |
+|FGPA+GPU  |(0x1014100f) 0001 | 131072        | 10000          |  524288 x 2         |           443               |  2.2 GB/s  |
 |GPU only  |  N/A         | 1024          | 10000          |  4096 x 2             |           36.2              |  215 MB/s  |
-|GPU only  |  N/A         | 1024x128      | 10000          |  524288 x 2         |           255               |  3.8 GB/s  |
+|GPU only  |  N/A         | 131072        | 10000          |  524288 x 2         |           255               |  3.8 GB/s  |
 
 
 \* size in bytes = vector size * sizeof(uint32_t) and x2 is because we consider bidirectional data transferts.
@@ -85,14 +85,14 @@ checking in memory + FPGA data copy from internal buffers to HOST or GPU memory
 
 ![Alt text](https://raw.githubusercontent.com/sinitame/capi-experiments/master/fpga-gpu-examples/read-write-example/doc/fpga-gpu-config-2-time-line.png "Config 2 time line")
 
-| Mode     |Action version| Vector size (uint32_t)   | Num Iterations | Total data transfer (bytes)* | Average iteration time (us) | Throughput |
-|--------- | ------------ | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
-|FPGA+GPU  |  0001        | 1024          | 10000          |  4096 x 2             |           16.8              |  465 MB/s  |
-|FPGA+GPU  |  0001        | 1024x128      | 10000          |  524288 x 2         |           301               |  3.2 GB/s  |
+| Mode     |Action version| Vector size (uint32_t)   | Num Iterations | Total data transfer (bytes)\* | Average iteration time (us) | Throughput |
+|--------- | ---------------- | ------------- | -------------- | --------------------------- | --------------------------- | ---------- |
+|FPGA+GPU  |(0x1014100f) 0001 | 1024          | 10000          |  4096 x 2             |           16.8              |  465 MB/s  |
+|FPGA+GPU  |(0x1014100f) 0001 | 131072        | 10000          |  524288 x 2         |           301               |  3.2 GB/s  |
 |GPU only  |  N/A         | 1024          | 10000          |  4096 x 2             |           12.4              |  630 MB/s  |
-|GPU only  |  N/A         | 1024x128      | 10000          |  524288 x 2         |           12.8              |  76.2 GB/s |
-|FPGA only |  0001        | 1024          | 10000          |  4096 x 2             |           4.8               |  1.6 GB/s  |
-|FPGA only |  0001        | 1024x128      | 10000          |  524288 x 2         |           277               |  3.5 GB/s  |
+|GPU only  |  N/A         | 131072        | 10000          |  524288 x 2         |           12.8              |  76.2 GB/s |
+|FPGA only |(0x1014100f) 0001 | 1024          | 10000          |  4096 x 2             |           4.8               |  1.6 GB/s  |
+|FPGA only |(0x1014100f) 0001 | 131072        | 10000          |  524288 x 2         |           277               |  3.5 GB/s  |
 
 \* size in bytes = vector size * sizeof(uint32_t) and x2 is because we consider bidirectional data transferts.
 

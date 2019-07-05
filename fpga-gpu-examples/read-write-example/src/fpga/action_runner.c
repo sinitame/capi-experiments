@@ -43,13 +43,13 @@
 
 // Function that fills the MMIO registers / data structure 
 // these are all data exchanged between the application and the action
-static void snap_prepare_gpu_example(struct snap_job *cjob,
-		struct gpu_example_job *mjob,
+static void snap_prepare_parallel_memcpy(struct snap_job *cjob,
+		struct parallel_memcpy_job *mjob,
 		int size,int max_iteration,uint8_t type,
 		void *addr_read,void *addr_write,
 		void *addr_read_flag, void *addr_write_flag)
 {
-	fprintf(stderr, "  prepare gpu_example job of %ld bytes size\n", sizeof(*mjob));
+	fprintf(stderr, "  prepare parallel_memcpy job of %ld bytes size\n", sizeof(*mjob));
 
 	assert(sizeof(*mjob) <= SNAP_JOBSIZE);
 	memset(mjob, 0, sizeof(*mjob));
@@ -74,27 +74,27 @@ static void snap_prepare_gpu_example(struct snap_job *cjob,
 }
 
 static void update_flag(uint8_t **flag, uint8_t flag_value, uint64_t addr){
-	(*flag)[0] = (uint8_t)flag_value;
 	for (int i = 0; i < (int)sizeof(uint64_t); i++){
 		(*flag)[i+1] = (addr >> 8*i) & 0xFF;
 	}
+	(*flag)[0] = (uint8_t)flag_value;
 
 }
 
 static void usage(const char *prog)
 {
 	printf("\n Usage: %s [-h] [-v, --verbose]\n"
-	"  -s, --vector_size <N>     	size of the uint32_t buffer array.\n"
-	"  -n, --num_iteration <N>   	number of iterations in a run.\n"
-	"\n"
-  	"WARNING ! This code only works with vector_size < 1024x128 \n"
-	"because of FPGA in-memory limitations on this version of the image).\n"
-	"\n"
-	"Example usage:\n"
-	"-----------------------\n"
-	"action_runner -s 1024 -n 10 -v\n"
-	"\n",
-        prog);
+		"  -s, --vector_size <N>     	size of the uint32_t buffer array.\n"
+		"  -n, --num_iteration <N>   	number of iterations in a run.\n"
+		"\n"
+		"WARNING ! This code only works with vector_size < 131072 \n"
+		"because of FPGA in-memory limitations on this version of the image).\n"
+		"\n"
+		"Example usage:\n"
+		"-----------------------\n"
+		"action_runner -s 1024 -n 10 -v\n"
+		"\n",
+		prog);
 }
 
 
@@ -111,7 +111,7 @@ static void usage(const char *prog)
  * 	- s : Size of the uint32_t buffer array
  * 	- v : Enable verbosity (for results checking)
  *
- * WARNING ! This code only works with vector_size < 1024x128
+ * WARNING ! This code only works with vector_size < 131072
  * because of FPGA in-memory limitations on this version of the image.
  */
 
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 	struct snap_action *action = NULL;
 	char device[128];
 	struct snap_job cjob;
-	struct gpu_example_job mjob;
+	struct parallel_memcpy_job mjob;
 	const char *num_iteration = NULL;
 	const char *in_size = NULL;
 	uint32_t *bufferA;
@@ -182,8 +182,8 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc == 1) {       // to provide help when program is called without argument
-          usage(argv[0]);
-          exit(EXIT_FAILURE);}
+		usage(argv[0]);
+		exit(EXIT_FAILURE);}
 
 	if (in_size != NULL) {
 		vector_size = atoi(in_size);
@@ -191,10 +191,20 @@ int main(int argc, char *argv[])
 			printf("Vector size should smaller than %d \n",MAX_SIZE);
 			exit(EXIT_FAILURE);
 		}
+	} else {
+		printf("vector_size should be set\n");
+		exit(EXIT_FAILURE);
 	}
 
 	if (num_iteration != NULL) {
 		max_iteration = atoi(num_iteration);
+		if (max_iteration <= 0){
+			printf("max_iteration should be superior to 0\n");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		printf("num_iteration should be set\n");
+		exit(EXIT_FAILURE);
 	}
 
 
@@ -235,12 +245,25 @@ int main(int argc, char *argv[])
 	// Allocate the card that will be used
 	snprintf(device, sizeof(device)-1, "/dev/cxl/afu%d.0s", card_no);
 	card = snap_card_alloc_dev(device, SNAP_VENDOR_ID_IBM, SNAP_DEVICE_ID_SNAP);
+	if (card == NULL) {
+		fprintf(stderr, "err: failed to open card %u: %s\n",
+				card_no, strerror(errno));
+		fprintf(stderr, "Default mode is FPGA mode.\n");
+		fprintf(stderr, "Did you want to run CPU mode ? => add SNAP_CONFIG=CPU before your command.\n");
+		fprintf(stderr, "Otherwise make sure you ran snap_find_card and snap_maint for your selected card.\n");
+		goto out_error;
+	}
 
 	// Attach the action that will be used on the allocated card
-	action = snap_attach_action(card, GPU_LATENCY_EVAL_ACTION_TYPE, action_irq, 60);
+	action = snap_attach_action(card, PARALLEL_MEMCPY_ACTION_TYPE, action_irq, 60);
+	if (action == NULL) {
+		fprintf(stderr, "err: failed to attach action %u: %s\n",
+				card_no, strerror(errno));
+		goto out_error1;
+	}
 
 	// Fill the stucture of data exchanged with the action
-	snap_prepare_gpu_example(&cjob, &mjob,vector_size,max_iteration,type,
+	snap_prepare_parallel_memcpy(&cjob, &mjob,vector_size,max_iteration,type,
 			(void *)addr_read, (void *)addr_write, 
 			(void *)addr_read_flag,(void *)addr_write_flag);
 
@@ -282,9 +305,9 @@ int main(int argc, char *argv[])
 
 		//FPGA is writing data in buffer
 		while((read_flag[0] == 1) || (write_flag[0] == 1)){ 
-			sleep(0.000004);
+			sleep(0.000002);
 		}
-		
+
 		for (int i = 0; i<vector_size; i++){
 			bufferB[i] = 2*bufferA[i];
 		}
@@ -293,8 +316,8 @@ int main(int argc, char *argv[])
 			printf("Writting : [%d,%d, ... ,%d]\n",bufferA[0],bufferA[1],bufferA[vector_size-1]); 
 			printf("Received : [%d,%d, ... ,%d]\n",bufferB[0],bufferB[1],bufferB[vector_size-1]); 
 		}
-		
-		
+
+
 		addr_read = (unsigned long)bufferB;
 		addr_write = (unsigned long)bufferA;
 
@@ -304,7 +327,7 @@ int main(int argc, char *argv[])
 
 	}
 
-	
+
 	gettimeofday(&end_time, NULL);
 
 	switch(cjob.retc) {
@@ -330,16 +353,23 @@ int main(int argc, char *argv[])
 	lcltime = (long long)(timediff_usec(&end_time, &begin_time));
 	fprintf(stdout, "SNAP action average processing time for %u iteration is %f usec\n",
 			max_iteration, (float)lcltime/(float)(max_iteration));
-	
+
 	// Detach action + disallocate the card
 	snap_detach_action(action);
 	snap_card_free(card);
-	
+
 	free(bufferA);
 	free(bufferB);
 	free(read_flag);
 	free(write_flag);
-	
 	exit(exit_code);
 
+out_error1:
+	snap_card_free(card);
+out_error:
+	__free(bufferA);
+	__free(bufferB);
+	__free(read_flag);
+	__free(write_flag);
+	exit(EXIT_FAILURE);
 }
