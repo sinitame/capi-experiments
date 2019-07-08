@@ -30,21 +30,17 @@ The aim of this example is to show how to send data from FPGA (here data is gene
 Different part of the application can be compiled seperatly by using the top Makefile:
 
 * **make fpga** will compile FPGA related code that can be run with `action_runner` with the following options:
-  * Vector sizes (-s)          *will define the size of FPGA buffers : size is limited by FPGA max buffer size (131072 with this image)*
-  * Number of iterations (-n)  *will define the number of read/writes performed within a run*
+  * Vector sizes (-s)          *will define the size of the vector to be generated (array of uint32_t)*
   * Enable verbosity (-v)
   
 * **make gpu** will compile GPU related code that can be run with `kernel_runner` with the following options:
-  * Vector sizes (-s)         *will define the size of GPU buffers* 
-  * Number of iterations (-n) *will define the number of iteration performed within a run*
+  * Vector sizes (-s)         *will define the size of the vector to be generated (array of uint32_t)*
   * Enable verbosity (-v)
   * Host buffering (-H)       *set config 1, without this option there is no HOST buffering so we are in config 2*
-  * Enable fpga emulator (-f) *emulate how FPGA would behave*
-  * Waiting time (-w)         *wait delay to emulate different FPGA processing time*
+
 
 * **make host** will compile main application (with FPGA and GPU parts). Application can be run with `main_application` with the following options:
-  * Vector sizes (-s)          *will define the size of all buffers : size is limited by FPGA max buffer size (131072 with this image)*
-  * Number of iterations (-n)  *will define the number of iteration performed within a run*
+  * Vector sizes (-s)          *will define the size of the vector to be generated (array of uint32_t)*
   * Enable verbosity (-v)
   * Host buffering (-H)         *set config 1, without this option there is no HOST buffering so we are in config 2*
 
